@@ -3,173 +3,166 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>TikTok Trend Radar</title>
+<title>Roblox Rant Channel Finder</title>
 <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
 <div class="app">
   <header>
-    <h1>TikTok Trend Radar</h1>
-    <p class="subtitle">Spot what multiple creators are posting about right now — before it blows up</p>
+    <h1>Roblox Rant Channel Finder</h1>
+    <p class="subtitle">Discover YouTube channels with 5K+ subscribers ranting about Roblox</p>
   </header>
 
-  <div class="search-bar">
-    <input id="query" type="text" placeholder='Search a topic (or leave blank to scan all trending)' />
-    <button id="searchBtn" onclick="doScan()">Scan Trends</button>
+  <div class="controls">
+    <div class="search-bar">
+      <input id="query" type="text" value="roblox rant" placeholder="Search query..." />
+      <select id="sort">
+        <option value="subscribers">Subscribers (High to Low)</option>
+        <option value="recent">Most Recently Active</option>
+      </select>
+      <button id="searchBtn" onclick="doSearch()">Search</button>
+    </div>
   </div>
 
-  <div class="quick-tags">
-    <span class="tag" onclick="setQuery('')">🔥 Everything</span>
-    <span class="tag" onclick="setQuery('drama exposed')">Drama</span>
-    <span class="tag" onclick="setQuery('news update')">News</span>
-    <span class="tag" onclick="setQuery('celebrity')">Celebrity</span>
-    <span class="tag" onclick="setQuery('relationship cheating')">Relationships</span>
-    <span class="tag" onclick="setQuery('money finance')">Money</span>
+  <div id="spinner" class="spinner hidden">
+    <div class="spinner-ring"></div>
+    <span>Searching YouTube...</span>
   </div>
 
-  <div id="status" class="status hidden"></div>
-  <div id="results"></div>
+  <div id="error" class="error-box hidden"></div>
+
+  <div id="results" class="channel-grid"></div>
+  <div id="empty" class="empty-state hidden">No channels found matching your search. Try a different query.</div>
 </div>
 
-<div id="toast-container"></div>
-
 <script>
-function setQuery(q) {
-  document.getElementById('query').value = q;
-  doScan();
-}
-
-async function doScan() {
-  const query = document.getElementById('query').value.trim();
+async function doSearch() {
+  const query = document.getElementById('query').value.trim() || 'roblox rant';
+  const sort = document.getElementById('sort').value;
   const btn = document.getElementById('searchBtn');
-  const status = document.getElementById('status');
+  const spinner = document.getElementById('spinner');
+  const errorBox = document.getElementById('error');
   const results = document.getElementById('results');
+  const empty = document.getElementById('empty');
 
   btn.disabled = true;
-  btn.textContent = 'Scanning...';
-  status.textContent = 'Scanning TikTok for trending topics... this takes 20-40 seconds.';
-  status.className = 'status';
-  status.classList.remove('hidden');
+  btn.textContent = 'Searching...';
+  spinner.classList.remove('hidden');
+  errorBox.classList.add('hidden');
   results.innerHTML = '';
+  empty.classList.add('hidden');
 
   try {
-    const resp = await fetch('/api/trends', {
+    const resp = await fetch('/api/search', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({query})
+      body: JSON.stringify({query, sort})
     });
     const data = await resp.json();
 
     if (data.error) {
-      status.textContent = 'Error: ' + data.error;
-      status.className = 'status error';
+      errorBox.textContent = data.error;
+      errorBox.classList.remove('hidden');
       return;
     }
 
-    if (!data.trends || data.trends.length === 0) {
-      status.textContent = `Scanned ${data.videos_scanned || 0} videos — no trending topics found. Try a different search.`;
-      status.className = 'status warn';
+    const channels = data.channels || [];
+    if (channels.length === 0) {
+      empty.classList.remove('hidden');
       return;
     }
 
-    status.textContent = `Found ${data.trends.length} trending topics from ${data.videos_scanned} videos.`;
-    status.className = 'status success';
-    renderTrends(data.trends);
+    renderChannels(channels);
   } catch (e) {
-    status.textContent = 'Network error: ' + e.message;
-    status.className = 'status error';
+    errorBox.textContent = 'Network error: ' + e.message;
+    errorBox.classList.remove('hidden');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Scan Trends';
+    btn.textContent = 'Search';
+    spinner.classList.add('hidden');
   }
 }
 
-function fmtNum(n) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
-  return n;
-}
-
-function timeAgo(ts) {
-  const diff = Math.floor(Date.now() / 1000) - ts;
-  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-  return Math.floor(diff / 86400) + 'd ago';
-}
-
-function heatBadge(creatorCount) {
-  if (creatorCount >= 10) return '<span class="badge heat-fire">🔥 On Fire</span>';
-  if (creatorCount >= 6) return '<span class="badge heat-hot">Hot</span>';
-  return '<span class="badge heat-rising">Rising</span>';
-}
-
-function renderTrends(trends) {
-  const container = document.getElementById('results');
-  container.innerHTML = trends.map((t, i) => `
-    <div class="trend-card" id="trend-${i}">
-      <div class="trend-header">
-        <div class="trend-rank">#${i + 1}</div>
-        <div class="trend-main">
-          <div class="trend-topic">${escHtml(t.topic)}</div>
-          <div class="trend-meta">
-            ${heatBadge(t.creator_count)}
-            <span class="stat">${t.creator_count} creators posting this</span>
-            <span class="stat">${fmtNum(t.total_views)} total views</span>
-            <span class="stat muted">newest ${timeAgo(t.newest_post)}</span>
-          </div>
-        </div>
-        <button class="copy-topic-btn" onclick="copyTopic('${escHtml(t.topic).replace(/'/g,"\\'")}')">Copy topic</button>
-      </div>
-
-      <div class="video-list">
-        ${t.top_videos.map(v => `
-          <div class="video-row">
-            <div class="video-info">
-              <a href="${v.url}" target="_blank" class="video-author">@${escHtml(v.author_name)}</a>
-              <span class="video-desc">${escHtml(v.desc.slice(0, 120))}${v.desc.length > 120 ? '...' : ''}</span>
-            </div>
-            <div class="video-stats">
-              <span>${fmtNum(v.views)} views</span>
-              <span>${fmtNum(v.likes)} likes</span>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  `).join('');
-}
-
-function copyTopic(topic) {
-  navigator.clipboard.writeText(topic).catch(() => {
-    const ta = document.createElement('textarea');
-    ta.value = topic;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-  });
-  showToast('Topic copied!');
-}
-
-function showToast(msg) {
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
-  document.getElementById('toast-container').appendChild(t);
-  setTimeout(() => t.remove(), 2500);
+function subBadgeClass(subCount) {
+  if (subCount >= 100000) return 'badge-green';
+  if (subCount >= 10000) return 'badge-yellow';
+  return 'badge-gray';
 }
 
 function escHtml(str) {
-  return String(str)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderChannels(channels) {
+  const container = document.getElementById('results');
+  container.innerHTML = channels.map((ch, i) => {
+    const thumb = ch.thumbnail_url
+      ? `<img class="channel-thumb" src="${escHtml(ch.thumbnail_url)}" alt="${escHtml(ch.channel_name)}" loading="lazy" />`
+      : `<div class="channel-thumb channel-thumb-placeholder">${escHtml(ch.channel_name.slice(0,1).toUpperCase())}</div>`;
+
+    const recentVideosHtml = (ch.recent_videos || []).map(v => `
+      <div class="video-item">
+        <a href="${escHtml(v.video_url)}" target="_blank" rel="noopener" class="video-title">${escHtml(v.title)}</a>
+        <div class="video-meta">
+          <span>${escHtml(v.view_count_fmt)} views</span>
+          <span>${escHtml(v.published_at)}</span>
+        </div>
+      </div>
+    `).join('');
+
+    const lastUpload = ch.recent_videos && ch.recent_videos[0]
+      ? ch.recent_videos[0].published_at
+      : 'Unknown';
+
+    return `
+    <div class="channel-card">
+      <div class="channel-header">
+        ${thumb}
+        <div class="channel-info">
+          <a href="${escHtml(ch.channel_url)}" target="_blank" rel="noopener" class="channel-name">${escHtml(ch.channel_name)}</a>
+          <div class="channel-badges">
+            <span class="badge ${subBadgeClass(ch.subscriber_count)}">${escHtml(ch.subscriber_count_fmt)} subs</span>
+          </div>
+          <div class="channel-stats">
+            <span class="stat-item"><span class="stat-label">Total Views</span> ${escHtml(ch.total_views_fmt)}</span>
+            <span class="stat-item"><span class="stat-label">Videos</span> ${ch.video_count.toLocaleString()}</span>
+            <span class="stat-item"><span class="stat-label">Last Upload</span> ${escHtml(lastUpload)}</span>
+          </div>
+        </div>
+      </div>
+      ${ch.recent_videos && ch.recent_videos.length > 0 ? `
+      <div class="videos-toggle" onclick="toggleVideos(this)">
+        <span class="toggle-label">Recent Videos (${ch.recent_videos.length})</span>
+        <span class="toggle-arrow">&#9660;</span>
+      </div>
+      <div class="videos-panel hidden">
+        ${recentVideosHtml}
+      </div>
+      ` : ''}
+    </div>`;
+  }).join('');
+}
+
+function toggleVideos(toggleEl) {
+  const panel = toggleEl.nextElementSibling;
+  const arrow = toggleEl.querySelector('.toggle-arrow');
+  if (panel.classList.contains('hidden')) {
+    panel.classList.remove('hidden');
+    arrow.style.transform = 'rotate(180deg)';
+  } else {
+    panel.classList.add('hidden');
+    arrow.style.transform = '';
+  }
 }
 
 document.getElementById('query').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doScan();
+  if (e.key === 'Enter') doSearch();
 });
 </script>
 </body>
 </html>
+
