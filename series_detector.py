@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+from typing import Optional
 
 # Patterns that signal a multi-part series
 PART_PATTERNS = [
@@ -27,7 +28,7 @@ SERIES_HASHTAGS = [
 ]
 
 
-def extract_part_number(text: str) -> int | None:
+def extract_part_number(text: str) -> Optional[int]:
     """Return the part number if found in text, else None."""
     lower = text.lower()
     for pattern in PART_PATTERNS:
