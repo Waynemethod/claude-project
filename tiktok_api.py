@@ -74,21 +74,43 @@ def get_video_comments(video_id: str, count: int = 30) -> list[dict]:
         return []
 
 
-def search_by_hashtags(query: str, count_per_tag: int = 30) -> list[dict]:
+def fetch_trending_videos(count_per_tag: int = 50) -> list[dict]:
     """
-    Main search: resolve hashtags from user query + fixed series hashtags,
-    then pull videos from each. Returns combined flat list of raw videos.
+    Fetch recent viral videos from broad trend-signal hashtags.
+    Used for topic trend detection.
     """
-    # Core series-signal hashtags plus query-derived ones
-    base_tags = ["part1", "part2", "storytime", "series", "episode1", "pt1", "pt2"]
-
-    # Add words from user query as hashtags
-    query_tags = [w.strip("#").lower() for w in query.split() if w.strip()]
-
-    all_tags = list(dict.fromkeys(query_tags + base_tags))  # dedupe, query first
+    # Broad hashtags that capture viral/news content across topics
+    trend_tags = [
+        "viral", "news", "trending", "exposed", "drama",
+        "storytime", "update", "breakingnews", "fyp", "omg"
+    ]
 
     all_videos = {}
-    for tag in all_tags[:8]:  # limit API calls
+    for tag in trend_tags:
+        cid = get_hashtag_id(tag)
+        if not cid:
+            print(f"[trend] no cid for #{tag}")
+            continue
+        videos = get_hashtag_videos(cid, count=count_per_tag)
+        print(f"[trend] #{tag} cid={cid} → {len(videos)} videos")
+        for v in videos:
+            vid_id = v.get("aweme_id") or v.get("id", "")
+            if vid_id:
+                all_videos[vid_id] = v
+
+    return list(all_videos.values())
+
+
+def search_by_hashtags(query: str, count_per_tag: int = 50) -> list[dict]:
+    """
+    Search by user query terms as hashtags, plus broad trend tags.
+    """
+    query_tags = [w.strip("#").lower() for w in query.split() if w.strip()]
+    broad_tags = ["viral", "news", "trending", "exposed", "drama", "storytime"]
+    all_tags = list(dict.fromkeys(query_tags + broad_tags))
+
+    all_videos = {}
+    for tag in all_tags[:8]:
         cid = get_hashtag_id(tag)
         if not cid:
             print(f"[search] no cid for #{tag}")
@@ -160,8 +182,8 @@ def is_quality_video(v: dict) -> bool:
     likes = v.get("likes", 0)
     comments = v.get("comments_count", 0)
 
-    # Must be 2M+ views
-    if views < 2_000_000:
+    # Must be viral enough (100K+ views for trend detection)
+    if views < 100_000:
         return False
 
     # Must have strong engagement (not bot-inflated) — at least 2% like rate

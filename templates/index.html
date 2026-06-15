@@ -3,65 +3,57 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>TikTok Series Finder</title>
+<title>TikTok Trend Radar</title>
 <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
 <div class="app">
   <header>
-    <h1>TikTok Series Finder</h1>
-    <p class="subtitle">Find recent viral US series for your YouTube Shorts</p>
+    <h1>TikTok Trend Radar</h1>
+    <p class="subtitle">Spot what multiple creators are posting about right now — before it blows up</p>
   </header>
 
   <div class="search-bar">
-    <input id="query" type="text" placeholder='e.g. "storytime part 1" or "#part1 drama"' />
-    <button id="searchBtn" onclick="doSearch()">Search</button>
+    <input id="query" type="text" placeholder='Search a topic (or leave blank to scan all trending)' />
+    <button id="searchBtn" onclick="doScan()">Scan Trends</button>
   </div>
 
   <div class="quick-tags">
-    <span class="tag" onclick="setQuery('#part1 storytime')">Storytime</span>
-    <span class="tag" onclick="setQuery('drama series part 1')">Drama</span>
-    <span class="tag" onclick="setQuery('update part 2 viral')">Updates</span>
-    <span class="tag" onclick="setQuery('episode 1 tiktok series')">Episodes</span>
-    <span class="tag" onclick="setQuery('cheating story part 1')">Cheating</span>
-    <span class="tag" onclick="setQuery('relationship drama part 1')">Relationship</span>
+    <span class="tag" onclick="setQuery('')">🔥 Everything</span>
+    <span class="tag" onclick="setQuery('drama exposed')">Drama</span>
+    <span class="tag" onclick="setQuery('news update')">News</span>
+    <span class="tag" onclick="setQuery('celebrity')">Celebrity</span>
+    <span class="tag" onclick="setQuery('relationship cheating')">Relationships</span>
+    <span class="tag" onclick="setQuery('money finance')">Money</span>
   </div>
 
   <div id="status" class="status hidden"></div>
   <div id="results"></div>
-
-  <!-- Comments modal -->
-  <div id="modal" class="modal hidden">
-    <div class="modal-box">
-      <button class="close-btn" onclick="closeModal()">✕</button>
-      <h2 id="modal-title">Comments</h2>
-      <div id="modal-body"></div>
-    </div>
-  </div>
 </div>
+
+<div id="toast-container"></div>
 
 <script>
 function setQuery(q) {
   document.getElementById('query').value = q;
-  doSearch();
+  doScan();
 }
 
-async function doSearch() {
+async function doScan() {
   const query = document.getElementById('query').value.trim();
-  if (!query) return;
-
   const btn = document.getElementById('searchBtn');
   const status = document.getElementById('status');
   const results = document.getElementById('results');
 
   btn.disabled = true;
-  btn.textContent = 'Searching...';
-  status.textContent = 'Scanning TikTok for viral series... this may take 10-20 seconds.';
+  btn.textContent = 'Scanning...';
+  status.textContent = 'Scanning TikTok for trending topics... this takes 20-40 seconds.';
   status.className = 'status';
+  status.classList.remove('hidden');
   results.innerHTML = '';
 
   try {
-    const resp = await fetch('/api/search', {
+    const resp = await fetch('/api/trends', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({query})
@@ -74,21 +66,21 @@ async function doSearch() {
       return;
     }
 
-    if (!data.series || data.series.length === 0) {
-      status.textContent = `Scanned ${data.total_videos_scanned || 0} videos — no multi-part series found. Try a different search.`;
+    if (!data.trends || data.trends.length === 0) {
+      status.textContent = `Scanned ${data.videos_scanned || 0} videos — no trending topics found. Try a different search.`;
       status.className = 'status warn';
       return;
     }
 
-    status.textContent = `Found ${data.series.length} series from ${data.total_videos_scanned} videos scanned.`;
+    status.textContent = `Found ${data.trends.length} trending topics from ${data.videos_scanned} videos.`;
     status.className = 'status success';
-    renderSeries(data.series);
+    renderTrends(data.trends);
   } catch (e) {
     status.textContent = 'Network error: ' + e.message;
     status.className = 'status error';
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Search';
+    btn.textContent = 'Scan Trends';
   }
 }
 
@@ -98,134 +90,72 @@ function fmtNum(n) {
   return n;
 }
 
-function escalationBadge(score) {
-  if (score >= 0.7) return '<span class="badge escalate-high">Strong escalation</span>';
-  if (score >= 0.4) return '<span class="badge escalate-mid">Growing</span>';
-  return '<span class="badge escalate-low">Steady</span>';
+function timeAgo(ts) {
+  const diff = Math.floor(Date.now() / 1000) - ts;
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return Math.floor(diff / 86400) + 'd ago';
 }
 
-function renderSeries(series) {
+function heatBadge(creatorCount) {
+  if (creatorCount >= 10) return '<span class="badge heat-fire">🔥 On Fire</span>';
+  if (creatorCount >= 6) return '<span class="badge heat-hot">Hot</span>';
+  return '<span class="badge heat-rising">Rising</span>';
+}
+
+function renderTrends(trends) {
   const container = document.getElementById('results');
-  container.innerHTML = series.map((s, i) => `
-    <div class="series-card" id="series-${i}">
-      <div class="series-header">
-        <div>
-          <span class="rank">#${i + 1}</span>
-          <span class="series-title">${escHtml(s.title)}</span>
+  container.innerHTML = trends.map((t, i) => `
+    <div class="trend-card" id="trend-${i}">
+      <div class="trend-header">
+        <div class="trend-rank">#${i + 1}</div>
+        <div class="trend-main">
+          <div class="trend-topic">${escHtml(t.topic)}</div>
+          <div class="trend-meta">
+            ${heatBadge(t.creator_count)}
+            <span class="stat">${t.creator_count} creators posting this</span>
+            <span class="stat">${fmtNum(t.total_views)} total views</span>
+            <span class="stat muted">newest ${timeAgo(t.newest_post)}</span>
+          </div>
         </div>
-        <div class="meta">
-          <a href="https://www.tiktok.com/@${s.author_name}" target="_blank" class="author">@${escHtml(s.author_name)}</a>
-          <span class="stat">${s.part_count} parts</span>
-          <span class="stat">${fmtNum(s.total_views)} total views</span>
-          ${escalationBadge(s.escalation_score)}
-        </div>
+        <button class="copy-topic-btn" onclick="copyTopic('${escHtml(t.topic).replace(/'/g,"\\'")}')">Copy topic</button>
       </div>
 
-      <div class="parts-list">
-        ${s.parts.map((p, pi) => `
-          <div class="part-row">
-            <div class="part-info">
-              <span class="part-num">Part ${pi + 1}</span>
-              <a href="${p.url}" target="_blank" class="part-desc">${escHtml(p.desc.slice(0, 100))}${p.desc.length > 100 ? '...' : ''}</a>
+      <div class="video-list">
+        ${t.top_videos.map(v => `
+          <div class="video-row">
+            <div class="video-info">
+              <a href="${v.url}" target="_blank" class="video-author">@${escHtml(v.author_name)}</a>
+              <span class="video-desc">${escHtml(v.desc.slice(0, 120))}${v.desc.length > 120 ? '...' : ''}</span>
             </div>
-            <div class="part-stats">
-              <span>${fmtNum(p.views)} views</span>
-              <span>${fmtNum(p.likes)} likes</span>
-              <span>${fmtNum(p.comments_count)} comments</span>
+            <div class="video-stats">
+              <span>${fmtNum(v.views)} views</span>
+              <span>${fmtNum(v.likes)} likes</span>
             </div>
           </div>
         `).join('')}
       </div>
-
-      <div class="actions">
-        <button onclick="loadSeriesComments(${i}, ${JSON.stringify(s.parts).replace(/"/g, '&quot;')}, '${escHtml(s.title).replace(/'/g,"\\'")}')">
-          Pull all comments
-        </button>
-        <button class="secondary" onclick="copyNarrative(${i})">Copy narrative</button>
-      </div>
-
-      <div id="comments-${i}" class="comments-section hidden"></div>
     </div>
   `).join('');
 }
 
-async function loadSeriesComments(idx, parts, title) {
-  const section = document.getElementById(`comments-${idx}`);
-  section.className = 'comments-section';
-  section.innerHTML = '<p class="loading">Fetching comments for all parts...</p>';
-
-  const resp = await fetch('/api/series-comments', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({parts})
-  });
-  const data = await resp.json();
-
-  let html = `<h3>Comments across all parts</h3>`;
-  for (const [vid_id, info] of Object.entries(data.by_video)) {
-    const contScore = Math.round(info.continuation_score * 100);
-    html += `
-      <div class="vid-comments">
-        <div class="vid-label">
-          ${escHtml(info.desc.slice(0, 80))}
-          <span class="cont-score" title="% of comments asking for continuation">${contScore}% want more</span>
-        </div>
-        <ul>
-          ${info.comments.slice(0, 10).map(c => `
-            <li>
-              <span class="comment-text">${escHtml(c.text)}</span>
-              <span class="comment-likes">${fmtNum(c.likes)} likes</span>
-            </li>
-          `).join('')}
-        </ul>
-      </div>
-    `;
-  }
-
-  html += `<button class="copy-btn" onclick="copyComments(${JSON.stringify(JSON.stringify(data.by_video)).replace(/"/g,'&quot;')})">Copy all comments</button>`;
-  section.innerHTML = html;
-}
-
-function copyNarrative(idx) {
-  const card = document.getElementById(`series-${idx}`);
-  const title = card.querySelector('.series-title').textContent;
-  const parts = [...card.querySelectorAll('.part-row')].map((row, i) => {
-    const desc = row.querySelector('.part-desc').textContent;
-    const stats = [...row.querySelectorAll('.part-stats span')].map(s => s.textContent).join(' | ');
-    return `Part ${i + 1}: ${desc}\n  ${stats}`;
-  }).join('\n\n');
-  copyToClipboard(`SERIES: ${title}\n\n${parts}`);
-  showToast('Narrative copied!');
-}
-
-function copyComments(jsonStr) {
-  const data = JSON.parse(jsonStr);
-  let text = '';
-  for (const [, info] of Object.entries(data)) {
-    text += `=== ${info.desc.slice(0, 80)} ===\n`;
-    info.comments.forEach(c => { text += `• ${c.text}  (${c.likes} likes)\n`; });
-    text += '\n';
-  }
-  copyToClipboard(text);
-  showToast('Comments copied!');
-}
-
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).catch(() => {
+function copyTopic(topic) {
+  navigator.clipboard.writeText(topic).catch(() => {
     const ta = document.createElement('textarea');
-    ta.value = text;
+    ta.value = topic;
     document.body.appendChild(ta);
     ta.select();
     document.execCommand('copy');
     document.body.removeChild(ta);
   });
+  showToast('Topic copied!');
 }
 
 function showToast(msg) {
   const t = document.createElement('div');
   t.className = 'toast';
   t.textContent = msg;
-  document.body.appendChild(t);
+  document.getElementById('toast-container').appendChild(t);
   setTimeout(() => t.remove(), 2500);
 }
 
@@ -237,12 +167,8 @@ function escHtml(str) {
     .replace(/"/g,'&quot;');
 }
 
-function closeModal() {
-  document.getElementById('modal').className = 'modal hidden';
-}
-
 document.getElementById('query').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doSearch();
+  if (e.key === 'Enter') doScan();
 });
 </script>
 </body>
