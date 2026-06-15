@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from tiktok_api import search_videos, get_user_videos, get_video_comments, normalize_video
+from tiktok_api import search_videos, get_user_videos, get_video_comments, normalize_video, normalize_comment
 from series_detector import group_into_series, score_continuation_comments
 
 app = Flask(__name__)
@@ -49,11 +49,7 @@ def comments(video_id: str):
     raw = get_video_comments(video_id, count=50)
     result = []
     for c in raw:
-        result.append({
-            "text": c.get("text", ""),
-            "likes": c.get("diggCount", 0),
-            "author": c.get("user", {}).get("uniqueId", ""),
-        })
+        result.append(normalize_comment(c))
     result.sort(key=lambda c: c["likes"], reverse=True)
     continuation_score = score_continuation_comments(raw)
     return jsonify({"comments": result[:30], "continuation_score": continuation_score})
@@ -70,14 +66,7 @@ def series_comments():
         if not vid_id:
             continue
         raw = get_video_comments(vid_id, count=30)
-        formatted = [
-            {
-                "text": c.get("text", ""),
-                "likes": c.get("diggCount", 0),
-                "author": c.get("user", {}).get("uniqueId", ""),
-            }
-            for c in raw
-        ]
+        formatted = [normalize_comment(c) for c in raw]
         formatted.sort(key=lambda c: c["likes"], reverse=True)
         all_comments[vid_id] = {
             "comments": formatted[:20],
