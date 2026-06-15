@@ -115,7 +115,7 @@ def detect_trends(videos: List[Dict]) -> List[Dict]:
                 unique_vids.append(v)
 
         unique_creators = len({v["author_id"] for v in unique_vids})
-        if unique_creators < 3:
+        if unique_creators < 2:
             continue
 
         # Skip if this phrase is basically the same set of videos as another trend

@@ -172,43 +172,13 @@ BORING_SIGNALS = [
 ]
 
 def is_quality_video(v: dict) -> bool:
-    """Filter for US-viral, recent, high-engagement, non-AI, non-boring videos."""
-    # Must be recent (last 4 months)
-    four_months_ago = int(time.time()) - (120 * 24 * 3600)
-    if v.get("create_time", 0) < four_months_ago:
-        return False
-
+    """Basic quality filter."""
     views = v.get("views", 0)
-    likes = v.get("likes", 0)
-    comments = v.get("comments_count", 0)
-
-    # Must be viral enough (100K+ views for trend detection)
-    if views < 100_000:
+    if views < 10_000:
         return False
-
-    # Must have strong engagement (not bot-inflated) — at least 2% like rate
-    if views > 0 and (likes / views) < 0.02:
-        return False
-
-    # Must have meaningful comment activity
-    if views > 0 and (comments / views) < 0.001:
-        return False
-
     desc_lower = v.get("desc", "").lower()
-
-    # Reject AI slop
     if any(kw in desc_lower for kw in AI_SLOP_KEYWORDS):
         return False
-
-    # Reject obviously boring formats
-    if any(kw in desc_lower for kw in BORING_SIGNALS):
-        return False
-
-    # Skip very short clips (under 15s) — usually reaction clips or memes, not narrative
-    duration = v.get("duration", 0)
-    if duration > 0 and duration < 15:
-        return False
-
     return True
 
 
