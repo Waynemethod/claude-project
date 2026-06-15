@@ -1,5 +1,6 @@
 import os
 import requests
+from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,7 +15,7 @@ HEADERS = {
 BASE_URL = "https://scraptik.p.rapidapi.com"
 
 
-def get_hashtag_id(hashtag: str) -> str | None:
+def get_hashtag_id(hashtag: str) -> Optional[str]:
     """Look up the challenge ID (cid) for a hashtag name."""
     url = f"{BASE_URL}/search-hashtags"
     params = {"keyword": hashtag, "count": 5}
