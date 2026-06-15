@@ -15,11 +15,23 @@ PART_PATTERNS = [
 ]
 
 CONTINUATION_COMMENTS = [
-    "part 2", "part two", "pt 2", "what happened", "what happens next",
-    "update", "more please", "need more", "continue", "sequel",
-    "next part", "and then", "story time", "storytime", "what did",
-    "did they", "did he", "did she", "did you", "omg no", "no way",
-    "keep going", "i need more", "keep us updated",
+    # Demanding more
+    "part 2", "part two", "pt 2", "pt2", "need part", "where's part",
+    "need more", "more please", "i need more", "give us more", "post more",
+    "keep going", "don't stop", "continue", "next part", "sequel",
+    # Emotional hooks
+    "what happened", "what happens next", "what did", "omg no", "no way",
+    "i can't", "i'm crying", "this is insane", "wait what", "bro what",
+    "i'm dead", "no he didn't", "she did not", "he did not", "they did not",
+    # Update requests
+    "update", "keep us updated", "update us", "please update",
+    "need an update", "give us an update",
+    # Storytime signals
+    "story time", "storytime", "tell us more", "spill",
+    # Shocked reactions that signal viral emotion
+    "did they", "did he", "did she", "did you", "and then", "then what",
+    "how did", "why did", "i need to know", "what was", "what is",
+    "i'm hooked", "can't wait", "waiting for part",
 ]
 
 SERIES_HASHTAGS = [
