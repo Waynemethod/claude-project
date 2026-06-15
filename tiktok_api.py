@@ -22,8 +22,10 @@ def get_hashtag_id(hashtag: str) -> Optional[str]:
     params = {"keyword": hashtag, "count": 5}
     try:
         resp = requests.get(url, headers=HEADERS, params=params, timeout=15)
+        print(f"[get_hashtag_id] #{hashtag} status={resp.status_code}")
         data = resp.json()
         challenges = data.get("challenge_list") or []
+        print(f"[get_hashtag_id] #{hashtag} challenge_list count={len(challenges)} keys={list(data.keys())}")
         for item in challenges:
             info = item.get("challenge_info", {}) or {}
             name = (info.get("cha_name") or "").lower()
@@ -31,7 +33,9 @@ def get_hashtag_id(hashtag: str) -> Optional[str]:
                 return str(info.get("cid", ""))
         # fallback: return first result's cid
         if challenges:
-            return str(challenges[0].get("challenge_info", {}).get("cid", ""))
+            cid = str(challenges[0].get("challenge_info", {}).get("cid", ""))
+            print(f"[get_hashtag_id] #{hashtag} fallback cid={cid}")
+            return cid
     except Exception as e:
         print(f"[get_hashtag_id] error: {e}")
     return None
