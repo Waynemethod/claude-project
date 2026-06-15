@@ -1,15 +1,10 @@
+import os
+import requests
 from flask import Flask, render_template, request, jsonify
-from tiktok_api import search_videos, get_user_videos, get_video_comments, normalize_video, normalize_comment
+from tiktok_api import search_by_hashtags, get_video_comments, normalize_video, normalize_comment
 from series_detector import group_into_series, score_continuation_comments
 
 app = Flask(__name__)
-
-DEFAULT_KEYWORDS = [
-    "#part1 #part2",
-    "storytime part 1",
-    "episode 1 series",
-    "drama series tiktok",
-]
 
 
 @app.route("/")
@@ -24,21 +19,9 @@ def search():
     if not query:
         return jsonify({"error": "Query is required"}), 400
 
-    raw_videos = search_videos(query, count=50)
+    raw_videos = search_by_hashtags(query, count_per_tag=30)
     videos = [normalize_video(v) for v in raw_videos]
-
-    # Also pull more videos from creators who appear in results
-    author_ids_seen = set()
-    extra = []
-    for v in videos:
-        aid = v["author_id"]
-        if aid and aid not in author_ids_seen:
-            author_ids_seen.add(aid)
-            if len(author_ids_seen) <= 5:  # limit extra API calls
-                user_vids = get_user_videos(aid, count=30)
-                extra.extend([normalize_video(uv) for uv in user_vids])
-
-    all_videos = {v["id"]: v for v in videos + extra}
+    all_videos = {v["id"]: v for v in videos if v["id"]}
     series = group_into_series(list(all_videos.values()))
 
     return jsonify({"series": series[:20], "total_videos_scanned": len(all_videos)})
@@ -47,9 +30,7 @@ def search():
 @app.route("/api/comments/<video_id>")
 def comments(video_id: str):
     raw = get_video_comments(video_id, count=50)
-    result = []
-    for c in raw:
-        result.append(normalize_comment(c))
+    result = [normalize_comment(c) for c in raw]
     result.sort(key=lambda c: c["likes"], reverse=True)
     continuation_score = score_continuation_comments(raw)
     return jsonify({"comments": result[:30], "continuation_score": continuation_score})
@@ -57,7 +38,6 @@ def comments(video_id: str):
 
 @app.route("/api/series-comments", methods=["POST"])
 def series_comments():
-    """Pull top comments for every part in a series."""
     data = request.get_json()
     parts = data.get("parts", [])
     all_comments = {}
@@ -78,26 +58,33 @@ def series_comments():
 
 @app.route("/api/debug")
 def debug():
-    """Test the raw API response so we can see what Scraptik returns."""
-    import requests, os
+    """Test raw API responses."""
     key = os.getenv("RAPIDAPI_KEY")
     headers = {
         "x-rapidapi-key": key,
         "x-rapidapi-host": "scraptik.p.rapidapi.com",
     }
-    # Try a few possible endpoint names
     results = {}
-    for path in ["/search-posts", "/search-hashtags", "/user-posts", "/get-post-comments"]:
-        try:
-            r = requests.get(
-                f"https://scraptik.p.rapidapi.com{path}",
-                headers=headers,
-                params={"keyword": "storytime", "count": 5},
-                timeout=10,
+
+    # Step 1: get hashtag CID for "part1"
+    try:
+        r = requests.get(
+            "https://scraptik.p.rapidapi.com/search-hashtags",
+            headers=headers, params={"keyword": "part1", "count": 3}, timeout=10
+        )
+        results["search-hashtags"] = {"status": r.status_code, "body": r.json()}
+        challenges = r.json().get("challenge_list", [])
+        if challenges:
+            cid = challenges[0].get("challenge_info", {}).get("cid")
+            # Step 2: get videos from that hashtag
+            r2 = requests.get(
+                "https://scraptik.p.rapidapi.com/hashtag-posts",
+                headers=headers, params={"cid": cid, "count": 5, "cursor": 0, "compact": 0}, timeout=10
             )
-            results[path] = {"status": r.status_code, "body": r.json()}
-        except Exception as e:
-            results[path] = {"error": str(e)}
+            results["hashtag-posts"] = {"status": r2.status_code, "cid_used": cid, "body": r2.json()}
+    except Exception as e:
+        results["error"] = str(e)
+
     return jsonify(results)
 
 
