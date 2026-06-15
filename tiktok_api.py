@@ -16,17 +16,19 @@ BASE_URL = "https://scraptik.p.rapidapi.com"
 
 
 def search_videos(keyword: str, count: int = 30) -> list[dict]:
-    """Search TikTok videos by keyword/hashtag."""
-    url = f"{BASE_URL}/search-videos"
+    """Search TikTok videos by keyword using Scraptik's Search Posts endpoint."""
+    url = f"{BASE_URL}/search-posts"
     params = {"keyword": keyword, "count": count, "offset": 0}
     try:
         resp = requests.get(url, headers=HEADERS, params=params, timeout=15)
-        resp.raise_for_status()
+        print(f"[search_videos] status={resp.status_code} url={resp.url}")
         data = resp.json()
-        # Scraptik wraps results in data.aweme_list
+        print(f"[search_videos] keys={list(data.keys())}")
         items = (
-            data.get("data", {}).get("aweme_list")
-            or data.get("aweme_list")
+            data.get("aweme_list")
+            or data.get("data", {}).get("aweme_list")
+            or data.get("items")
+            or data.get("data", {}).get("items")
             or data.get("data", [])
             or []
         )

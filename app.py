@@ -87,7 +87,7 @@ def debug():
     }
     # Try a few possible endpoint names
     results = {}
-    for path in ["/search-videos", "/search", "/search-general", "/video/search"]:
+    for path in ["/search-posts", "/search-hashtags", "/user-posts", "/get-post-comments"]:
         try:
             r = requests.get(
                 f"https://scraptik.p.rapidapi.com{path}",
