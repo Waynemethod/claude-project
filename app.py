@@ -1,7 +1,7 @@
 import os
 import requests
 from flask import Flask, render_template, request, jsonify
-from tiktok_api import search_by_hashtags, get_video_comments, normalize_video, normalize_comment
+from tiktok_api import search_by_hashtags, get_video_comments, normalize_video, normalize_comment, is_quality_video
 from series_detector import group_into_series, score_continuation_comments
 
 app = Flask(__name__)
@@ -21,7 +21,7 @@ def search():
 
     raw_videos = search_by_hashtags(query, count_per_tag=50)
     videos = [normalize_video(v) for v in raw_videos]
-    all_videos = {v["id"]: v for v in videos if v["id"]}
+    all_videos = {v["id"]: v for v in videos if v["id"] and is_quality_video(v)}
     series = group_into_series(list(all_videos.values()))
 
     return jsonify({"series": series[:20], "total_videos_scanned": len(all_videos)})

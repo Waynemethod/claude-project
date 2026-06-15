@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from typing import Optional
 from dotenv import load_dotenv
@@ -39,7 +40,7 @@ def get_hashtag_id(hashtag: str) -> Optional[str]:
 def get_hashtag_videos(cid: str, count: int = 30) -> list[dict]:
     """Fetch videos from a hashtag using its challenge ID."""
     url = f"{BASE_URL}/hashtag-posts"
-    params = {"cid": cid, "count": count, "cursor": 0, "compact": 0}
+    params = {"cid": cid, "count": count, "cursor": 0, "compact": 0, "region": "US"}
     try:
         resp = requests.get(url, headers=HEADERS, params=params, timeout=15)
         print(f"[get_hashtag_videos] cid={cid} status={resp.status_code}")
@@ -119,6 +120,8 @@ def normalize_video(raw: dict) -> dict:
     elif isinstance(cover_data, str):
         cover = cover_data
 
+    duration = video_info.get("duration", 0) or 0
+
     return {
         "id": aweme_id,
         "desc": desc,
@@ -131,8 +134,26 @@ def normalize_video(raw: dict) -> dict:
         "shares": stats.get("share_count", 0) or stats.get("shareCount", 0),
         "cover": cover,
         "create_time": raw.get("create_time", 0) or raw.get("createTime", 0),
+        "duration": duration,
         "url": f"https://www.tiktok.com/@{username}/video/{aweme_id}",
     }
+
+
+def is_quality_video(v: dict) -> bool:
+    """Filter for US-viral, recent, visually engaging videos."""
+    # Must be recent (last 4 months)
+    four_months_ago = int(time.time()) - (120 * 24 * 3600)
+    if v.get("create_time", 0) < four_months_ago:
+        return False
+    # Must be viral (at least 50K views)
+    if v.get("views", 0) < 50_000:
+        return False
+    # Prefer longer videos (30s+) as proxy for multi-scene content
+    # Allow shorter if very viral (1M+ views)
+    duration = v.get("duration", 0)
+    if duration > 0 and duration < 15 and v.get("views", 0) < 1_000_000:
+        return False
+    return True
 
 
 def normalize_comment(raw: dict) -> dict:
