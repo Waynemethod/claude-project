@@ -19,7 +19,7 @@ def search():
     if not query:
         return jsonify({"error": "Query is required"}), 400
 
-    raw_videos = search_by_hashtags(query, count_per_tag=30)
+    raw_videos = search_by_hashtags(query, count_per_tag=50)
     videos = [normalize_video(v) for v in raw_videos]
     all_videos = {v["id"]: v for v in videos if v["id"]}
     series = group_into_series(list(all_videos.values()))

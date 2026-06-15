@@ -87,7 +87,7 @@ def search_by_hashtags(query: str, count_per_tag: int = 30) -> list[dict]:
     all_tags = list(dict.fromkeys(query_tags + base_tags))  # dedupe, query first
 
     all_videos = {}
-    for tag in all_tags[:6]:  # limit API calls
+    for tag in all_tags[:8]:  # limit API calls
         cid = get_hashtag_id(tag)
         if not cid:
             print(f"[search] no cid for #{tag}")

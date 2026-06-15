@@ -106,8 +106,8 @@ def group_into_series(videos: list[dict]) -> list[dict]:
                 clusters[key].append(v)
 
         for series_key, parts in clusters.items():
-            if len(parts) < 2:
-                continue  # Need at least 2 parts to be a series
+            if len(parts) < 1:
+                continue
 
             # Sort parts by their part number, then by create_time as fallback
             def sort_key(v):
