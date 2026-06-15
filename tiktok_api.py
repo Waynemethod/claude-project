@@ -79,10 +79,10 @@ def fetch_trending_videos(count_per_tag: int = 50) -> list[dict]:
     Fetch recent viral videos from broad trend-signal hashtags.
     Used for topic trend detection.
     """
-    # Broad hashtags that capture viral/news content across topics
+    # Specific TikTok challenge hashtags known to have active communities
     trend_tags = [
-        "viral", "news", "trending", "exposed", "drama",
-        "storytime", "update", "breakingnews", "fyp", "omg"
+        "storytime", "drama", "exposing", "tea", "gossip",
+        "cheating", "relationship", "celebrity", "rant", "spill"
     ]
 
     all_videos = {}
@@ -106,7 +106,7 @@ def search_by_hashtags(query: str, count_per_tag: int = 50) -> list[dict]:
     Search by user query terms as hashtags, plus broad trend tags.
     """
     query_tags = [w.strip("#").lower() for w in query.split() if w.strip()]
-    broad_tags = ["viral", "news", "trending", "exposed", "drama", "storytime"]
+    broad_tags = ["storytime", "drama", "exposing", "tea", "gossip", "cheating"]
     all_tags = list(dict.fromkeys(query_tags + broad_tags))
 
     all_videos = {}
