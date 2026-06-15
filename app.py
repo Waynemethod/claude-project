@@ -76,5 +76,30 @@ def series_comments():
     return jsonify({"by_video": all_comments})
 
 
+@app.route("/api/debug")
+def debug():
+    """Test the raw API response so we can see what Scraptik returns."""
+    import requests, os
+    key = os.getenv("RAPIDAPI_KEY")
+    headers = {
+        "x-rapidapi-key": key,
+        "x-rapidapi-host": "scraptik.p.rapidapi.com",
+    }
+    # Try a few possible endpoint names
+    results = {}
+    for path in ["/search-videos", "/search", "/search-general", "/video/search"]:
+        try:
+            r = requests.get(
+                f"https://scraptik.p.rapidapi.com{path}",
+                headers=headers,
+                params={"keyword": "storytime", "count": 5},
+                timeout=10,
+            )
+            results[path] = {"status": r.status_code, "body": r.json()}
+        except Exception as e:
+            results[path] = {"error": str(e)}
+    return jsonify(results)
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
