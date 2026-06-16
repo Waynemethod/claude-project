@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Shorts Pacing Analyzer</title>
+<link rel="stylesheet" href="/static/style.css" />
+<link rel="stylesheet" href="/static/shorts.css" />
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Shorts Pacing Analyzer</h1>
+    <p class="subtitle">Paste a YouTube Shorts URL to get the transcript and a frame-by-frame pacing timeline</p>
+    <p class="subtitle"><a href="/" style="color: var(--accent);">&larr; Back to Channel Finder</a></p>
+  </header>
+
+  <div class="controls">
+    <div class="search-bar">
+      <input id="url" type="text" placeholder="https://www.youtube.com/shorts/..." />
+      <button id="analyzeBtn" onclick="doAnalyze()">Analyze</button>
+    </div>
+  </div>
+
+  <div id="spinner" class="spinner hidden">
+    <div class="spinner-ring"></div>
+    <span>Downloading & analyzing (this can take a minute)...</span>
+  </div>
+
+  <div id="error" class="error-box hidden"></div>
+
+  <div id="results" class="hidden">
+    <div class="legend">
+      <span class="legend-item"><span class="dot dot-cut"></span> Scene cut</span>
+      <span class="legend-item"><span class="dot dot-motion"></span> Motion spike</span>
+      <span class="legend-item"><span class="dot dot-audio"></span> Audio spike</span>
+    </div>
+
+    <div class="timeline-wrap">
+      <div id="timeline" class="timeline"></div>
+      <div id="timelineTicks" class="timeline-ticks"></div>
+    </div>
+
+    <h2 class="section-title">Transcript</h2>
+    <div id="transcript" class="transcript"></div>
+  </div>
+</div>
+
+<script src="/static/shorts.js"></script>
+</body>
+</html>

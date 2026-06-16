@@ -2,6 +2,7 @@ import os
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from youtube_api import find_roblox_rant_channels
+from shorts_analyzer import analyze_short
 
 load_dotenv()
 
@@ -11,6 +12,25 @@ app = Flask(__name__)
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/shorts")
+def shorts_page():
+    return render_template("shorts.html")
+
+
+@app.route("/api/analyze-short", methods=["POST"])
+def analyze_short_route():
+    data = request.get_json() or {}
+    url = (data.get("url") or "").strip()
+    if not url:
+        return jsonify({"error": "Please provide a YouTube Shorts URL."}), 400
+
+    try:
+        result = analyze_short(url)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": f"Failed to analyze video: {e}"}), 500
 
 
 @app.route("/api/search", methods=["POST"])

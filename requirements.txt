@@ -1,3 +1,8 @@
 flask
 requests
 python-dotenv
+yt-dlp
+openai-whisper
+opencv-python
+librosa
+numpy
